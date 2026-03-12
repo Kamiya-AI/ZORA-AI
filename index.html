@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>講座管理システム</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Noto Sans JP', sans-serif; background: #f5f6f8; color: #2c3e50; min-height: 100vh; line-height: 1.7; -webkit-font-smoothing: antialiased; }
+    .screen { display: none; min-height: 100vh; animation: fadeIn 0.35s ease; }
+    .screen.active { display: flex; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+    /* ===== Password Screens ===== */
+    .password-screen { align-items: center; justify-content: center; background: linear-gradient(135deg, #f8f9fb 0%, #eef0f4 100%); }
+    .password-card { background: #fff; border-radius: 16px; padding: 48px 40px; width: 100%; max-width: 420px; box-shadow: 0 4px 24px rgba(0,0,0,0.06), 0 1px 4px rgba(0,0,0,0.04); text-align: center; margin: 20px; }
+    .password-card .logo-icon { width: 56px; height: 56px; background: #2c3e50; border-radius: 14px; display: flex; align-items: center; justify-content: center; margin: 0 auto 24px; color: #fff; font-size: 24px; }
+    .password-card h1 { font-size: 22px; font-weight: 600; margin-bottom: 8px; color: #1a1a2e; }
+    .password-card .subtitle { font-size: 14px; color: #7f8c9b; margin-bottom: 32px; }
+    .input-group { position: relative; margin-bottom: 20px; text-align: left; }
+    .input-group label { display: block; font-size: 13px; font-weight: 500; color: #5a6775; margin-bottom: 6px; }
+    .input-group input[type="text"], .input-group input[type="password"], .input-group input[type="url"] { width: 100%; padding: 12px 16px; border: 1.5px solid #e0e4ea; border-radius: 10px; font-size: 15px; font-family: 'Noto Sans JP', sans-serif; transition: border-color 0.2s, box-shadow 0.2s; background: #fafbfc; color: #2c3e50; }
+    .input-group input:focus { outline: none; border-color: #2c3e50; box-shadow: 0 0 0 3px rgba(44,62,80,0.08); background: #fff; }
+    .btn-primary { width: 100%; padding: 13px 24px; background: #2c3e50; color: #fff; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; font-family: 'Noto Sans JP', sans-serif; cursor: pointer; transition: background 0.2s, transform 0.1s, box-shadow 0.2s; letter-spacing: 0.5px; }
+    .btn-primary:hover { background: #1a2a3a; box-shadow: 0 4px 12px rgba(44,62,80,0.2); }
+    .btn-primary:active { transform: scale(0.98); }
+    .error-msg { color: #e74c3c; font-size: 13px; margin-top: 12px; display: none; }
+    .error-msg.show { display: block; animation: shake 0.4s ease; }
+    @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-6px); } 75% { transform: translateX(6px); } }
+
+    /* ===== Course Screen ===== */
+    .course-screen { flex-direction: column; background: #f5f6f8; }
+    .course-header { background: #fff; padding: 16px 32px; display: flex; align-items: center; justify-content: center; border-bottom: 1px solid #e8eaee; position: sticky; top: 0; z-index: 100; box-shadow: 0 1px 6px rgba(0,0,0,0.03); position: relative; }
+    .course-header h1 { font-size: 20px; font-weight: 600; color: #1a1a2e; display: flex; align-items: center; gap: 10px; margin: 0 auto; }
+    .course-header h1 .header-icon { width: 32px; height: 32px; background: #2c3e50; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 16px; }
+    .gear-btn { width: 40px; height: 40px; border: none; background: #f0f2f5; border-radius: 10px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background 0.2s, transform 0.3s; color: #5a6775; font-size: 20px; position: absolute; right: 32px; }
+    .gear-btn:hover { background: #e4e7ec; transform: rotate(45deg); }
+    .course-body { padding: 32px; max-width: 1200px; margin: 0 auto; width: 100%; }
+    .course-empty { text-align: center; padding: 80px 20px; color: #9aa5b4; }
+    .course-empty .empty-icon { font-size: 48px; margin-bottom: 16px; opacity: 0.5; }
+    .course-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 24px; align-items: stretch; }
+    .course-card { background: #fff; border-radius: 14px; overflow: hidden; box-shadow: 0 2px 12px rgba(0,0,0,0.05); transition: transform 0.2s, box-shadow 0.2s; display: flex; flex-direction: column; height: 100%; }
+    .course-card:hover { transform: translateY(-3px); box-shadow: 0 6px 24px rgba(0,0,0,0.08); }
+    .card-thumbnail { width: 100%; aspect-ratio: 16/9; background: #e8eaee; display: flex; align-items: center; justify-content: center; color: #b0b8c4; font-size: 14px; position: relative; overflow: hidden; }
+    .card-thumbnail img { width: 100%; height: 100%; object-fit: cover; }
+    .card-thumbnail .no-image { display: flex; flex-direction: column; align-items: center; gap: 8px; font-size: 13px; }
+    .card-thumbnail .no-image span { font-size: 36px; opacity: 0.4; }
+    .card-content { padding: 20px; flex-grow: 1; display: flex; flex-direction: column; }
+    .card-title { font-size: 17px; font-weight: 600; color: #1a1a2e; margin-bottom: 10px; line-height: 1.5; }
+    .card-description { font-size: 13px; color: #7f8c9b; line-height: 1.8; margin-bottom: 18px; white-space: pre-wrap; flex-grow: 1; }
+    .btn-watch { display: inline-flex; align-items: center; gap: 8px; padding: 10px 20px; background: #e74c3c; color: #fff; border: none; border-radius: 8px; font-size: 13px; font-weight: 600; font-family: 'Noto Sans JP', sans-serif; cursor: pointer; transition: background 0.2s, transform 0.1s; text-decoration: none; }
+    .btn-watch:hover { background: #c0392b; }
+    .btn-watch .play-icon { font-size: 16px; }
+
+    /* ===== Settings Screen ===== */
+    .settings-screen { flex-direction: column; background: #f5f6f8; }
+    .settings-header { background: #fff; padding: 16px 32px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #e8eaee; position: sticky; top: 0; z-index: 100; box-shadow: 0 1px 6px rgba(0,0,0,0.03); }
+    .settings-header h1 { font-size: 20px; font-weight: 600; color: #1a1a2e; }
+    .btn-back { display: inline-flex; align-items: center; gap: 6px; padding: 10px 20px; background: #2c3e50; color: #fff; border: none; border-radius: 10px; font-size: 14px; font-weight: 600; font-family: 'Noto Sans JP', sans-serif; cursor: pointer; transition: background 0.2s; }
+    .btn-back:hover { background: #1a2a3a; }
+    .settings-body { padding: 32px; max-width: 900px; margin: 0 auto; width: 100%; }
+    .settings-section { background: #fff; border-radius: 14px; padding: 28px; margin-bottom: 24px; box-shadow: 0 2px 12px rgba(0,0,0,0.04); }
+    .settings-section h2 { font-size: 16px; font-weight: 600; color: #1a1a2e; margin-bottom: 20px; padding-bottom: 12px; border-bottom: 1px solid #eef0f3; display: flex; align-items: center; gap: 8px; }
+    .settings-section h2 .section-icon { font-size: 18px; }
+    .setting-row { display: flex; gap: 12px; align-items: flex-end; margin-bottom: 12px; }
+    .setting-row .input-group { flex: 1; margin-bottom: 0; }
+    .btn-change-pw { padding: 12px 24px; background: #2c3e50; color: #fff; border: none; border-radius: 10px; font-size: 14px; font-weight: 600; font-family: 'Noto Sans JP', sans-serif; cursor: pointer; transition: background 0.2s; white-space: nowrap; }
+    .btn-change-pw:hover { background: #1a2a3a; }
+    .pw-success { color: #27ae60; font-size: 13px; margin-top: 8px; display: none; }
+    .pw-success.show { display: block; }
+
+    /* Course edit items */
+    .course-edit-item { background: #fafbfc; border: 1px solid #eef0f3; border-radius: 12px; padding: 24px; margin-bottom: 16px; position: relative; transition: border-color 0.2s; }
+    .course-edit-item:hover { border-color: #d0d5dd; }
+    .course-edit-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+    .course-edit-number { font-size: 13px; font-weight: 600; color: #2c3e50; background: #e8eaee; padding: 4px 12px; border-radius: 20px; }
+    .btn-delete-course { padding: 6px 14px; background: none; border: 1.5px solid #e74c3c; color: #e74c3c; border-radius: 8px; font-size: 12px; font-weight: 600; font-family: 'Noto Sans JP', sans-serif; cursor: pointer; transition: background 0.2s, color 0.2s; }
+    .btn-delete-course:hover { background: #e74c3c; color: #fff; }
+    .edit-grid { display: grid; grid-template-columns: 1fr; gap: 14px; }
+    .edit-grid textarea { width: 100%; padding: 12px 16px; border: 1.5px solid #e0e4ea; border-radius: 10px; font-size: 14px; font-family: 'Noto Sans JP', sans-serif; resize: vertical; min-height: 80px; transition: border-color 0.2s, box-shadow 0.2s; background: #fff; color: #2c3e50; }
+    .edit-grid textarea:focus { outline: none; border-color: #2c3e50; box-shadow: 0 0 0 3px rgba(44,62,80,0.08); }
+    .edit-grid input { width: 100%; padding: 12px 16px; border: 1.5px solid #e0e4ea; border-radius: 10px; font-size: 14px; font-family: 'Noto Sans JP', sans-serif; transition: border-color 0.2s, box-shadow 0.2s; background: #fff; color: #2c3e50; }
+    .edit-grid input:focus { outline: none; border-color: #2c3e50; box-shadow: 0 0 0 3px rgba(44,62,80,0.08); }
+    .edit-grid label { display: block; font-size: 13px; font-weight: 500; color: #5a6775; margin-bottom: 6px; }
+
+    /* Thumbnail upload */
+    .thumbnail-upload-area { border: 2px dashed #d0d5dd; border-radius: 10px; text-align: center; cursor: pointer; transition: border-color 0.2s, background 0.2s; position: relative; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 8px; aspect-ratio: 16/9; overflow: hidden; }
+    .thumbnail-upload-area:hover { border-color: #2c3e50; background: #f8f9fb; }
+    .thumbnail-upload-area.has-image { border-style: solid; border-color: #e0e4ea; }
+    .thumbnail-upload-area .upload-placeholder { color: #9aa5b4; font-size: 13px; }
+    .thumbnail-upload-area .upload-placeholder span { font-size: 32px; display: block; margin-bottom: 4px; }
+    .thumbnail-upload-area img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .thumbnail-upload-area input[type="file"] { position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
+    .btn-remove-thumb { position: absolute; top: 8px; right: 8px; width: 28px; height: 28px; border-radius: 50%; background: rgba(0,0,0,0.6); color: #fff; border: none; font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background 0.2s; z-index: 5; }
+    .btn-remove-thumb:hover { background: rgba(231,76,60,0.9); }
+
+    .btn-add-course { width: 100%; padding: 16px; background: #fff; color: #2c3e50; border: 2px dashed #d0d5dd; border-radius: 12px; font-size: 15px; font-weight: 600; font-family: 'Noto Sans JP', sans-serif; cursor: pointer; transition: background 0.2s, border-color 0.2s; display: flex; align-items: center; justify-content: center; gap: 8px; }
+    .btn-add-course:hover { background: #f5f6f8; border-color: #2c3e50; }
+    .toast { position: fixed; bottom: 32px; right: 32px; background: #2c3e50; color: #fff; padding: 14px 24px; border-radius: 10px; font-size: 14px; font-weight: 500; box-shadow: 0 4px 16px rgba(0,0,0,0.15); opacity: 0; transform: translateY(12px); transition: opacity 0.3s, transform 0.3s; z-index: 999; }
+    .toast.show { opacity: 1; transform: translateY(0); }
+
+    @media (max-width: 768px) { .course-header, .settings-header { padding: 14px 16px; } .course-body, .settings-body { padding: 16px; } .course-grid { grid-template-columns: 1fr; gap: 16px; } .password-card { padding: 32px 24px; margin: 16px; } .setting-row { flex-direction: column; align-items: stretch; } .settings-section { padding: 20px; } .course-edit-item { padding: 16px; } }
+  </style>
+</head>
+<body>
+  <div id="screen-password1" class="screen password-screen active">
+    <div class="password-card">
+      <div class="logo-icon">📚</div>
+      <h1>講座管理システム</h1>
+      <p class="subtitle">パスワードを入力してログインしてください</p>
+      <div class="input-group"><label for="password1-input">パスワード</label><input type="password" id="password1-input"></div>
+      <button class="btn-primary" onclick="loginPassword1()">ログイン</button>
+      <p class="error-msg" id="error1">パスワードが正しくありません</p>
+    </div>
+  </div>
+  <div id="screen-courses" class="screen course-screen">
+    <header class="course-header"><h1><span class="header-icon">📚</span><span id="course-header-title">講座一覧</span></h1><button class="gear-btn" onclick="showScreen('screen-password2')">⚙</button></header>
+    <div class="course-body"><div id="course-grid" class="course-grid"></div><div id="course-empty" class="course-empty" style="display:none;"><div class="empty-icon">📭</div><p>講座がまだ登録されていません。</p></div></div>
+  </div>
+  <div id="screen-password2" class="screen password-screen">
+    <div class="password-card">
+      <div class="logo-icon">⚙</div>
+      <h1>管理者設定</h1>
+      <p class="subtitle">管理者パスワードを入力してください</p>
+      <div class="input-group"><label for="password2-input">管理者パスワード</label><input type="password" id="password2-input"></div>
+      <button class="btn-primary" onclick="loginPassword2()">設定画面へ</button>
+      <p class="error-msg" id="error2">パスワードが正しくありません</p>
+      <button style="margin-top:20px;background:none;border:none;color:#7f8c9b;cursor:pointer;text-decoration:underline;" onclick="showScreen('screen-courses')">← 戻る</button>
+    </div>
+  </div>
+  <div id="screen-settings" class="screen settings-screen">
+    <header class="settings-header"><h1>⚙ 設定</h1><button class="btn-back" onclick="saveAndBack()">💾 保存して戻る</button></header>
+    <div class="settings-body">
+      <div class="settings-section">
+        <h2>🔐 パスワード変更</h2>
+        <div class="setting-row"><div class="input-group"><input type="text" id="new-password1" placeholder="新しいパスワード"></div><button class="btn-change-pw" onclick="changePassword1()">変更</button></div>
+        <p class="pw-success" id="pw-change-success">✅ 変更しました</p>
+      </div>
+      <div class="settings-section">
+        <h2>🏷 メイン講座名</h2>
+        <div class="input-group"><input type="text" id="main-course-name"></div>
+      </div>
+      <div class="settings-section">
+        <h2>🌐 データベース共有 (Firebase)</h2>
+        <p style="font-size: 12px; color: #7f8c9b; margin-bottom: 12px;">Firebase Configを入力すると、クラウド上でデータを共有できるようになります。</p>
+        <div class="input-group">
+          <label>Firebase Config (JSON形式)</label>
+          <textarea id="firebase-config-input" style="width: 100%; height: 120px; font-family: monospace; font-size: 12px; padding: 10px; border: 1.5px solid #e0e4ea; border-radius: 10px;" placeholder='{ "apiKey": "...", "authDomain": "...", ... }'></textarea>
+        </div>
+        <button class="btn-change-pw" style="width: 100%; margin-top: 8px;" onclick="saveFirebaseConfig()">Firebase設定を保存</button>
+        <p class="pw-success" id="firebase-success">✅ 設定を保存し、データベースに接続しました</p>
+      </div>
+      <div class="settings-section">
+        <h2>📝 講座管理</h2>
+        <div id="course-edit-list"></div>
+        <button class="btn-add-course" onclick="addCourse()">＋ 講座を追加</button>
+      </div>
+    </div>
+  </div>
+  <div class="toast" id="toast"></div>
+
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-storage-compat.js"></script>
+
+  <script>
+    var DEFAULT_PASSWORD1 = 'AIsaito';
+    var DEFAULT_PASSWORD2 = 'AIkouza';
+    var currentData = null;
+    var dbFirebase = null;
+    var storageFirebase = null;
+    var isFirebaseActive = false;
+
+    // ユーザー提供のFirebase設定
+    var FIREBASE_CONFIG = {
+      apiKey: "AIzaSyB1vzDKXnTjine1Ev9fVJM_o4FZOzU4I2s",
+      authDomain: "kouzakannriapuri.firebaseapp.com",
+      projectId: "kouzakannriapuri",
+      storageBucket: "kouzakannriapuri.firebasestorage.app",
+      messagingSenderId: "693668665005",
+      appId: "1:693668665005:web:db16358edc5d16fff5d824",
+      measurementId: "G-TWP7FXN4BB"
+    };
+
+    // ===== IndexedDB Manager =====
+    var DB_NAME = 'CourseAppDB';
+    var STORE_NAME = 'appData';
+    var db = null;
+
+    function initDB() {
+      return new Promise(function(resolve, reject) {
+        var request = indexedDB.open(DB_NAME, 1);
+        request.onupgradeneeded = function(e) {
+          var db = e.target.result;
+          if (!db.objectStoreNames.contains(STORE_NAME)) {
+            db.createObjectStore(STORE_NAME);
+          }
+        };
+        request.onsuccess = function(e) {
+          db = e.target.result;
+          resolve(db);
+        };
+        request.onerror = function(e) { reject(e); };
+      });
+    }
+
+    async function getData() {
+      if (!db) await initDB();
+
+      // Firebaseが有効な場合はクラウドから取得
+      if (isFirebaseActive && dbFirebase) {
+        try {
+          const doc = await dbFirebase.collection('app').doc('main').get();
+          if (doc.exists) {
+            console.log('Online data loaded');
+            return doc.data();
+          }
+        } catch (e) {
+          console.error('Firebase read error:', e);
+        }
+      }
+
+      return new Promise(function(resolve) {
+        var transaction = db.transaction([STORE_NAME], 'readonly');
+        var store = transaction.objectStore(STORE_NAME);
+        var request = store.get('main');
+        request.onsuccess = function(e) {
+          var result = e.target.result;
+          if (result) {
+            resolve(result);
+          } else {
+            // localStorageからの移行
+            var raw = localStorage.getItem('courseAppData');
+            if (raw) {
+              try {
+                var legacyData = JSON.parse(raw);
+                saveData(legacyData); // IndexedDBへ保存
+                resolve(legacyData);
+                return;
+              } catch(e) {}
+            }
+            resolve({ password1: DEFAULT_PASSWORD1, password2: DEFAULT_PASSWORD2, mainCourseName: '', courses: [] });
+          }
+        };
+      });
+    }
+
+    async function saveData(data) {
+      if (!db) await initDB();
+      // IndexedDB (Local)
+      var localPromise = new Promise(function(resolve, reject) {
+        var transaction = db.transaction([STORE_NAME], 'readwrite');
+        var store = transaction.objectStore(STORE_NAME);
+        var request = store.put(data, 'main');
+        request.onsuccess = function() { resolve(true); };
+        request.onerror = function(e) { reject(e); };
+      });
+
+      // Firebase (Cloud)
+      if (isFirebaseActive && dbFirebase) {
+        try {
+          await dbFirebase.collection('app').doc('main').set(data);
+          console.log('Firebase saved successfully');
+        } catch (e) {
+          console.error('Firebase save error:', e);
+        }
+      }
+
+      return localPromise;
+    }
+
+    // ===== Firebase Functions =====
+    async function initFirebase() {
+      var configRaw = localStorage.getItem('firebaseConfig');
+      var config = null;
+      
+      if (configRaw) {
+        try { config = JSON.parse(configRaw); } catch(e) {}
+      }
+      
+      // 保存された設定がない場合は、デフォルトの設定（提供されたもの）を使用
+      if (!config) {
+        config = FIREBASE_CONFIG;
+        localStorage.setItem('firebaseConfig', JSON.stringify(FIREBASE_CONFIG));
+      }
+
+      try {
+        if (firebase.apps.length === 0) {
+          firebase.initializeApp(config);
+        }
+        dbFirebase = firebase.firestore();
+        storageFirebase = firebase.storage();
+        isFirebaseActive = true;
+        console.log('Firebase initialized');
+      } catch (e) {
+        console.error('Firebase Init Error:', e);
+      }
+    }
+
+    async function saveFirebaseConfig() {
+      var input = document.getElementById('firebase-config-input').value;
+      try {
+        JSON.parse(input); // 検証
+        localStorage.setItem('firebaseConfig', input);
+        await initFirebase();
+        document.getElementById('firebase-success').classList.add('show');
+        
+        // 初回のみ既存データをアップロードするか確認
+        if (confirm('現在のローカルデータをクラウド（Firebase）にアップロードしますか？')) {
+          await pushToCloud();
+        }
+
+        setTimeout(() => showScreen('screen-courses'), 1500);
+      } catch (e) {
+        alert('Configの形式が正しくありません。JSON形式で入力してください。');
+      }
+    }
+
+    async function pushToCloud() {
+      if (!isFirebaseActive || !dbFirebase) return;
+      showToast('クラウドに同期中...');
+      try {
+        await dbFirebase.collection('app').doc('main').set(currentData);
+        showToast('同期が完了しました');
+      } catch (e) {
+        console.error('Push Error:', e);
+        alert('クラウドへの同期に失敗しました。');
+      }
+    }
+
+    async function showScreen(screenId) {
+      document.querySelectorAll('.screen').forEach(function(s) { s.classList.remove('active'); });
+      document.getElementById(screenId).classList.add('active');
+      if (screenId === 'screen-courses') { currentData = await getData(); renderCourses(); }
+      else if (screenId === 'screen-settings') { currentData = await getData(); renderSettings(); }
+    }
+
+    async function loginPassword1() {
+      var val = document.getElementById('password1-input').value;
+      var data = await getData();
+      if (val === data.password1) showScreen('screen-courses');
+      else document.getElementById('error1').classList.add('show');
+    }
+
+    async function loginPassword2() {
+      var val = document.getElementById('password2-input').value;
+      var data = await getData();
+      if (val === data.password2) showScreen('screen-settings');
+      else document.getElementById('error2').classList.add('show');
+    }
+
+    function renderCourses() {
+      var data = currentData;
+      var grid = document.getElementById('course-grid');
+      var empty = document.getElementById('course-empty');
+      document.getElementById('course-header-title').textContent = data.mainCourseName || '講座一覧';
+      if (data.courses.length === 0) { grid.style.display = 'none'; empty.style.display = 'block'; return; }
+      grid.style.display = 'grid'; empty.style.display = 'none';
+      grid.innerHTML = data.courses.map(function(c) {
+        return '<div class="course-card"><div class="card-thumbnail">' + (c.thumbnail ? '<img src="'+c.thumbnail+'">' : '<div class="no-image"><span>🖼</span></div>') + '</div><div class="card-content"><div class="card-title">'+escapeHtml(c.title)+'</div><div class="card-description">'+escapeHtml(c.description)+'</div>' + (c.url ? '<a href="'+c.url+'" target="_blank" class="btn-watch">▶ 視聴</a>' : '') + '</div></div>';
+      }).join('');
+    }
+
+    function renderSettings() {
+      var data = currentData;
+      var list = document.getElementById('course-edit-list');
+      document.getElementById('main-course-name').value = data.mainCourseName || '';
+      list.innerHTML = data.courses.map(function(c, i) {
+        var thumb = c.thumbnail ? '<img src="'+c.thumbnail+'"><button class="btn-remove-thumb" onclick="removeThumb('+i+')">✕</button>' : '<div class="upload-placeholder"><span>📷</span>16:9 登録</div>';
+        return '<div class="course-edit-item"><div class="course-edit-header"><span class="course-edit-number">講座 '+(i+1)+'</span><button class="btn-delete-course" onclick="deleteCourse('+i+')">削除</button></div><div class="edit-grid"><div class="input-group"><label>タイトル</label><input type="text" oninput="updateCourse('+i+',\'title\',this.value)" value="'+escapeAttr(c.title)+'"></div><div class="input-group"><label>サムネイル</label><div class="thumbnail-upload-area '+(c.thumbnail?'has-image':'')+'">'+thumb+'<input type="file" accept="image/*" onchange="uploadThumb(event,'+i+')"></div></div><div class="input-group"><label>URL</label><input type="url" oninput="updateCourse('+i+',\'url\',this.value)" value="'+escapeAttr(c.url)+'"></div><div class="input-group"><label>説明</label><textarea oninput="updateCourse('+i+',\'description\',this.value)">'+escapeHtml(c.description)+'</textarea></div></div></div>';
+      }).join('');
+    }
+
+    function updateCourse(i, field, val) { currentData.courses[i][field] = val; }
+    function uploadThumb(e, i) {
+      var file = e.target.files[0];
+      if (!file) return;
+
+      // Firebase Storage が有効な場合
+      if (isFirebaseActive && storageFirebase) {
+        showToast('画像をアップロード中...');
+        var storageRef = storageFirebase.ref();
+        var fileRef = storageRef.child('thumbnails/' + Date.now() + '_' + file.name);
+        fileRef.put(file).then(function(snapshot) {
+          return snapshot.ref.getDownloadURL();
+        }).then(function(url) {
+          currentData.courses[i].thumbnail = url;
+          renderSettings();
+          showToast('画像をクラウドに保存しました');
+        }).catch(function(error) {
+          console.error('Upload Error:', error);
+          alert('画像のアップロードに失敗しました。プロジェクトのStorage設定を確認してください。');
+        });
+        return;
+      }
+
+      // ローカル保存（従来どおり）
+      var reader = new FileReader();
+      reader.onload = function(ev) { currentData.courses[i].thumbnail = ev.target.result; renderSettings(); };
+      reader.readAsDataURL(file);
+    }
+    function removeThumb(i) { currentData.courses[i].thumbnail = ''; renderSettings(); }
+    function addCourse() { currentData.mainCourseName = document.getElementById('main-course-name').value; currentData.courses.push({title:'',thumbnail:'',url:'',description:''}); renderSettings(); }
+    function deleteCourse(i) { if(confirm('削除しますか？')) { currentData.courses.splice(i, 1); renderSettings(); } }
+    async function saveAndBack() {
+      currentData.mainCourseName = document.getElementById('main-course-name').value;
+      await saveData(currentData);
+      showScreen('screen-courses');
+      showToast('保存しました');
+    }
+    async function changePassword1() {
+      var pw = document.getElementById('new-password1').value;
+      if (!pw.trim()) return;
+      currentData.password1 = pw;
+      await saveData(currentData);
+      document.getElementById('pw-change-success').classList.add('show');
+    }
+    function escapeHtml(s) { return s?s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'):''; }
+    function escapeAttr(s) { return s?s.replace(/"/g,'&quot;'):''; }
+    function showToast(m) { var t=document.getElementById('toast'); t.textContent=m; t.classList.add('show'); setTimeout(function(){t.classList.remove('show');},2000); }
+
+    // 初期化
+    (async function(){
+      await initDB();
+      await initFirebase(); // Firebase初期化
+      var data = await getData();
+      data.password1 = DEFAULT_PASSWORD1;
+      data.password2 = DEFAULT_PASSWORD2;
+      await saveData(data);
+
+      // 設定画面に反映
+      var configRaw = localStorage.getItem('firebaseConfig');
+      if (configRaw) document.getElementById('firebase-config-input').value = configRaw;
+    })();
+  </script>
+</body>
+</html>
