@@ -102,6 +102,16 @@
     .toast { position: fixed; bottom: 32px; right: 32px; background: #2c3e50; color: #fff; padding: 14px 24px; border-radius: 10px; font-size: 14px; font-weight: 500; box-shadow: 0 4px 16px rgba(0,0,0,0.15); opacity: 0; transform: translateY(12px); transition: opacity 0.3s, transform 0.3s; z-index: 999; }
     .toast.show { opacity: 1; transform: translateY(0); }
 
+    .toast.show { opacity: 1; transform: translateY(0); }
+
+    /* Firebase Status Badge */
+    .db-status { font-size: 11px; padding: 2px 8px; border-radius: 12px; margin-left: 8px; font-weight: 500; display: inline-flex; align-items: center; gap: 4px; }
+    .status-online { background: #e8f5e9; color: #2e7d32; border: 1px solid #c8e6c9; }
+    .status-offline { background: #ffebee; color: #c62828; border: 1px solid #ffcdd2; }
+    .status-dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; }
+    .status-online .status-dot { background: #2e7d32; }
+    .status-offline .status-dot { background: #c62828; }
+
     @media (max-width: 768px) { .course-header, .settings-header { padding: 14px 16px; } .course-body, .settings-body { padding: 16px; } .course-grid { grid-template-columns: 1fr; gap: 16px; } .password-card { padding: 32px 24px; margin: 16px; } .setting-row { flex-direction: column; align-items: stretch; } .settings-section { padding: 20px; } .course-edit-item { padding: 16px; } }
   </style>
 </head>
@@ -117,7 +127,14 @@
     </div>
   </div>
   <div id="screen-courses" class="screen course-screen">
-    <header class="course-header"><h1><span class="header-icon">📚</span><span id="course-header-title">講座一覧</span></h1><button class="gear-btn" onclick="showScreen('screen-password2')">⚙</button></header>
+    <header class="course-header">
+      <h1>
+        <span class="header-icon">📚</span>
+        <span id="course-header-title">講座一覧</span>
+        <span id="db-status-badge" class="db-status status-offline"><span class="status-dot"></span>オフライン</span>
+      </h1>
+      <button class="gear-btn" onclick="showScreen('screen-password2')">⚙</button>
+    </header>
     <div class="course-body"><div id="course-grid" class="course-grid"></div><div id="course-empty" class="course-empty" style="display:none;"><div class="empty-icon">📭</div><p>講座がまだ登録されていません。</p></div></div>
   </div>
   <div id="screen-password2" class="screen password-screen">
@@ -296,8 +313,22 @@
         storageFirebase = firebase.storage();
         isFirebaseActive = true;
         console.log('Firebase initialized');
+        updateStatusBadge(true);
       } catch (e) {
         console.error('Firebase Init Error:', e);
+        updateStatusBadge(false);
+      }
+    }
+
+    function updateStatusBadge(online) {
+      var badge = document.getElementById('db-status-badge');
+      if (!badge) return;
+      if (online) {
+        badge.className = 'db-status status-online';
+        badge.innerHTML = '<span class="status-dot"></span>クラウド同期中';
+      } else {
+        badge.className = 'db-status status-offline';
+        badge.innerHTML = '<span class="status-dot"></span>オフライン';
       }
     }
 
