@@ -131,7 +131,6 @@
       <h1>
         <span class="header-icon">📚</span>
         <span id="course-header-title">講座一覧</span>
-        <span id="db-status-badge" class="db-status status-offline"><span class="status-dot"></span>オフライン</span>
       </h1>
       <button class="gear-btn" onclick="showScreen('screen-password2')">⚙</button>
     </header>
@@ -149,7 +148,10 @@
     </div>
   </div>
   <div id="screen-settings" class="screen settings-screen">
-    <header class="settings-header"><h1>⚙ 設定</h1><button class="btn-back" onclick="saveAndBack()">💾 保存して戻る</button></header>
+    <header class="settings-header">
+      <h1>⚙ 設定 <span id="db-status-badge" class="db-status status-offline"><span class="status-dot"></span>オフライン</span></h1>
+      <button class="btn-back" onclick="saveAndBack()">💾 保存して戻る</button>
+    </header>
     <div class="settings-body">
       <div class="settings-section">
         <h2>🔐 パスワード変更</h2>
@@ -359,7 +361,7 @@
         showToast('同期が完了しました');
       } catch (e) {
         console.error('Push Error:', e);
-        alert('クラウドへの同期に失敗しました。');
+        alert('クラウドへの同期に失敗しました。\n理由: ' + (e.message || '不明なエラー'));
       }
     }
 
