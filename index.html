@@ -112,6 +112,42 @@
     .status-online .status-dot { background: #2e7d32; }
     .status-offline .status-dot { background: #c62828; }
 
+    /* Storage Gauge */
+    .storage-gauge-section { margin-top: 16px; padding-top: 16px; border-top: 1px dashed #eef0f3; }
+    .gauge-label { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 8px; color: #5a6775; }
+    .gauge-bar { width: 100%; height: 8px; background: #eef0f4; border-radius: 4px; overflow: hidden; }
+    .gauge-fill { height: 100%; width: 0%; background: #2ecc71; transition: width 0.3s, background 0.3s; }
+    .gauge-fill.warning { background: #f39c12; }
+    .gauge-fill.danger { background: #e74c3c; }
+
+    /* Materials */
+    .btn-materials { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 10px 20px; background: #7f8c9b; color: #fff; border: none; border-radius: 8px; font-size: 13px; font-weight: 600; font-family: 'Noto Sans JP', sans-serif; cursor: pointer; transition: background 0.2s, transform 0.1s; text-decoration: none; width: 100%; transition: all 0.2s; }
+    .btn-materials:hover { background: #6c7a89; transform: translateY(-1px); }
+    
+    .button-group { display: flex; flex-direction: column; gap: 8px; margin-top: auto; }
+    .button-slot { min-height: 40px; display: flex; align-items: center; justify-content: center; } /* 高さを固定し、空でも場所を取る */
+    
+    .btn-watch { width: 100%; justify-content: center; } /* 視聴ボタンも幅一杯に */
+    
+    .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: none; align-items: center; justify-content: center; z-index: 2000; padding: 20px; }
+    .modal-overlay.active { display: flex; }
+    .modal-content { background: #fff; border-radius: 16px; padding: 32px; width: 100%; max-width: 500px; box-shadow: 0 10px 40px rgba(0,0,0,0.2); }
+    .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+    .modal-header h2 { font-size: 18px; font-weight: 600; }
+    .modal-close { background: none; border: none; font-size: 24px; cursor: pointer; color: #7f8c9b; }
+    .material-list { list-style: none; }
+    .material-item { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; background: #fafbfc; border: 1px solid #eef0f3; border-radius: 10px; margin-bottom: 12px; transition: background 0.2s; text-decoration: none; color: inherit; }
+    .material-item:hover { background: #f0f2f5; border-color: #d0d5dd; }
+    .material-info { display: flex; align-items: center; gap: 12px; }
+    .material-icon { font-size: 20px; }
+    .material-name { font-size: 14px; font-weight: 500; }
+    .material-arrow { color: #b0b8c4; }
+
+    .material-edit-list { margin-top: 12px; }
+    .material-edit-item { display: flex; gap: 8px; margin-bottom: 8px; align-items: flex-start; }
+    .btn-add-material { font-size: 12px; padding: 6px 12px; background: #f0f2f5; border: 1px solid #d0d5dd; border-radius: 6px; cursor: pointer; margin-top: 8px; width: 100%; color: #5a6775; font-weight: 500; }
+    .btn-add-material:hover { background: #e4e7ec; }
+
     @media (max-width: 768px) { .course-header, .settings-header { padding: 14px 16px; } .course-body, .settings-body { padding: 16px; } .course-grid { grid-template-columns: 1fr; gap: 16px; } .password-card { padding: 32px 24px; margin: 16px; } .setting-row { flex-direction: column; align-items: stretch; } .settings-section { padding: 20px; } .course-edit-item { padding: 16px; } }
   </style>
 </head>
@@ -171,6 +207,14 @@
         </div>
         <button class="btn-change-pw" style="width: 100%; margin-top: 8px;" onclick="saveFirebaseConfig()">Firebase設定を保存</button>
         <p class="pw-success" id="firebase-success">✅ 設定を保存し、データベースに接続しました</p>
+        
+        <div class="storage-gauge-section" id="storage-gauge-area" style="display:none;">
+          <div class="gauge-label">
+            <span>ストレージ使用量 (3GB中)</span>
+            <span id="storage-usage-text">0.0 MB (0%)</span>
+          </div>
+          <div class="gauge-bar"><div id="storage-gauge-fill" class="gauge-fill"></div></div>
+        </div>
       </div>
       <div class="settings-section">
         <h2>📝 講座管理</h2>
@@ -179,6 +223,20 @@
       </div>
     </div>
   </div>
+  
+  <!-- Materials Modal -->
+  <div id="modal-materials" class="modal-overlay" onclick="closeMaterialsModal(event)">
+    <div class="modal-content" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <h2 id="modal-course-title">講座資料</h2>
+        <button class="modal-close" onclick="closeMaterialsModal()">×</button>
+      </div>
+      <div id="modal-material-list" class="material-list">
+        <!-- リストがここに生成される -->
+      </div>
+    </div>
+  </div>
+
   <div class="toast" id="toast"></div>
 
   <!-- Firebase SDK -->
@@ -193,6 +251,7 @@
     var dbFirebase = null;
     var storageFirebase = null;
     var isFirebaseActive = false;
+    var STORAGE_LIMIT = 3221225472; // 3GB in bytes
 
     // ユーザー提供のFirebase設定
     var FIREBASE_CONFIG = {
@@ -393,9 +452,35 @@
       document.getElementById('course-header-title').textContent = data.mainCourseName || '講座一覧';
       if (data.courses.length === 0) { grid.style.display = 'none'; empty.style.display = 'block'; return; }
       grid.style.display = 'grid'; empty.style.display = 'none';
-      grid.innerHTML = data.courses.map(function(c) {
-        return '<div class="course-card"><div class="card-thumbnail">' + (c.thumbnail ? '<img src="'+c.thumbnail+'">' : '<div class="no-image"><span>🖼</span></div>') + '</div><div class="card-content"><div class="card-title">'+escapeHtml(c.title)+'</div><div class="card-description">'+escapeHtml(c.description)+'</div>' + (c.url ? '<a href="'+c.url+'" target="_blank" class="btn-watch">▶ 視聴</a>' : '') + '</div></div>';
+      grid.innerHTML = data.courses.map(function(c, i) {
+        var watchBtn = c.url ? '<a href="'+c.url+'" target="_blank" class="btn-watch" style="width:100%;">▶ 視聴</a>' : '';
+        var materialBtn = (c.materials && c.materials.length > 0) ? '<button class="btn-materials" onclick="openMaterialsModal('+i+')">📄 資料</button>' : '';
+        
+        return '<div class="course-card"><div class="card-thumbnail">' + (c.thumbnail ? '<img src="'+c.thumbnail+'">' : '<div class="no-image"><span>🖼</span></div>') + '</div>' +
+               '<div class="card-content"><div class="card-title">'+escapeHtml(c.title)+'</div><div class="card-description">'+escapeHtml(c.description)+'</div>' +
+               '<div class="button-group">' +
+               '<div class="button-slot">' + watchBtn + '</div>' +
+               '<div class="button-slot">' + materialBtn + '</div>' +
+               '</div></div></div>';
       }).join('');
+    }
+
+    function openMaterialsModal(i) {
+      var course = currentData.courses[i];
+      document.getElementById('modal-course-title').textContent = course.title + ' の資料';
+      var list = document.getElementById('modal-material-list');
+      list.innerHTML = (course.materials || []).map(function(m) {
+        var icon = '📄';
+        if (m.url.match(/\.(jpeg|jpg|png|gif)$/i)) icon = '🖼';
+        else if (m.url.match(/\.pdf$/i)) icon = '📕';
+        else if (m.url.indexOf('http') === 0) icon = '🔗';
+        return '<a href="'+m.url+'" target="_blank" class="material-item"><div class="material-info"><span class="material-icon">'+icon+'</span><span class="material-name">'+escapeHtml(m.name)+'</span></div><span class="material-arrow">❯</span></a>';
+      }).join('');
+      document.getElementById('modal-materials').classList.add('active');
+    }
+
+    function closeMaterialsModal(e) {
+      document.getElementById('modal-materials').classList.remove('active');
     }
 
     function renderSettings() {
@@ -404,14 +489,112 @@
       document.getElementById('main-course-name').value = data.mainCourseName || '';
       list.innerHTML = data.courses.map(function(c, i) {
         var thumb = c.thumbnail ? '<img src="'+c.thumbnail+'"><button class="btn-remove-thumb" onclick="removeThumb('+i+')">✕</button>' : '<div class="upload-placeholder"><span>📷</span>16:9 登録</div>';
-        return '<div class="course-edit-item"><div class="course-edit-header"><span class="course-edit-number">講座 '+(i+1)+'</span><button class="btn-delete-course" onclick="deleteCourse('+i+')">削除</button></div><div class="edit-grid"><div class="input-group"><label>タイトル</label><input type="text" oninput="updateCourse('+i+',\'title\',this.value)" value="'+escapeAttr(c.title)+'"></div><div class="input-group"><label>サムネイル</label><div class="thumbnail-upload-area '+(c.thumbnail?'has-image':'')+'">'+thumb+'<input type="file" accept="image/*" onchange="uploadThumb(event,'+i+')"></div></div><div class="input-group"><label>URL</label><input type="url" oninput="updateCourse('+i+',\'url\',this.value)" value="'+escapeAttr(c.url)+'"></div><div class="input-group"><label>説明</label><textarea oninput="updateCourse('+i+',\'description\',this.value)">'+escapeHtml(c.description)+'</textarea></div></div></div>';
+        
+        // 資料リスト生成
+        var materialsHtml = (c.materials || []).map(function(m, mi) {
+          return '<div class="material-edit-item"><input type="text" placeholder="資料名" value="'+escapeAttr(m.name)+'" oninput="updateMaterial('+i+','+mi+',\'name\',this.value)" style="flex:1;"><input type="text" placeholder="URL" value="'+escapeAttr(m.url)+'" oninput="updateMaterial('+i+','+mi+',\'url\',this.value)" style="flex:2;"><button class="btn-remove-thumb" style="position:static;width:32px;height:32px;background:#e74c3c;" onclick="deleteMaterial('+i+','+mi+')">×</button></div>';
+        }).join('');
+
+        return '<div class="course-edit-item"><div class="course-edit-header"><span class="course-edit-number">講座 '+(i+1)+'</span><button class="btn-delete-course" onclick="deleteCourse('+i+')">削除</button></div><div class="edit-grid"><div class="input-group"><label>タイトル</label><input type="text" oninput="updateCourse('+i+',\'title\',this.value)" value="'+escapeAttr(c.title)+'"></div><div class="input-group"><label>サムネイル</label><div class="thumbnail-upload-area '+(c.thumbnail?'has-image':'')+'">'+thumb+'<input type="file" accept="image/*" onchange="uploadThumb(event,'+i+')"></div></div><div class="input-group"><label>URL (動画視聴)</label><input type="url" oninput="updateCourse('+i+',\'url\',this.value)" value="'+escapeAttr(c.url)+'"></div><div class="input-group"><label>説明</label><textarea oninput="updateCourse('+i+',\'description\',this.value)">'+escapeHtml(c.description)+'</textarea></div><div class="input-group"><label>📁 資料管理</label><div class="material-edit-list">'+materialsHtml+'</div><div style="display:flex;gap:8px;margin-top:8px;"><button class="btn-add-material" style="flex:1;" onclick="addMaterial('+i+')">＋ 資料リンク追加</button><label class="btn-add-material" style="flex:1;display:flex;align-items:center;justify-content:center;cursor:pointer;margin-top:8px;">ファイルをアップロード<input type="file" style="display:none;" onchange="uploadMaterialFile(event,'+i+')"></label></div></div></div></div>';
       }).join('');
+      updateStorageGauge();
+    }
+
+    function addMaterial(i) {
+      if (!currentData.courses[i].materials) currentData.courses[i].materials = [];
+      currentData.courses[i].materials.push({ name: '', url: '' });
+      renderSettings();
+    }
+
+    function deleteMaterial(ci, mi) {
+      currentData.courses[ci].materials.splice(mi, 1);
+      renderSettings();
+    }
+
+    function updateMaterial(ci, mi, field, val) {
+      currentData.courses[ci].materials[mi][field] = val;
+    }
+
+    async function uploadMaterialFile(e, i) {
+      var file = e.target.files[0];
+      if (!file) return;
+
+      // 容量チェック
+      var currentTotal = 0;
+      currentData.courses.forEach(function(c) {
+        if (c.thumbnailSize) currentTotal += c.thumbnailSize;
+        (c.materials || []).forEach(function(m) {
+          if (m.size) currentTotal += m.size;
+        });
+      });
+      if (currentTotal + file.size > STORAGE_LIMIT) {
+        alert('ストレージ容量制限(3GB)を超えています。');
+        return;
+      }
+
+      if (isFirebaseActive && storageFirebase) {
+        showToast('ファイルをアップロード中...');
+        var ref = storageFirebase.ref().child('materials/' + Date.now() + '_' + file.name);
+        try {
+          var snapshot = await ref.put(file);
+          var url = await snapshot.ref.getDownloadURL();
+          if (!currentData.courses[i].materials) currentData.courses[i].materials = [];
+          currentData.courses[i].materials.push({ name: file.name, url: url, size: file.size });
+          renderSettings();
+          showToast('ファイルを保存しました');
+        } catch (err) {
+          alert('アップロード失敗: ' + err.message);
+        }
+      } else {
+        alert('Firebaseが有効でないためアップロードできません。');
+      }
+    }
+
+    function updateStorageGauge() {
+      var total = 0;
+      currentData.courses.forEach(function(c) {
+        if (c.thumbnailSize) total += c.thumbnailSize;
+        (c.materials || []).forEach(function(m) {
+          if (m.size) total += m.size;
+        });
+      });
+
+      var area = document.getElementById('storage-gauge-area');
+      var fill = document.getElementById('storage-gauge-fill');
+      var text = document.getElementById('storage-usage-text');
+      if (!fill || !text) return;
+
+      if (isFirebaseActive) area.style.display = 'block';
+
+      var percent = (total / STORAGE_LIMIT) * 100;
+      var mb = (total / (1024 * 1024)).toFixed(1);
+      
+      fill.style.width = Math.min(percent, 100) + '%';
+      text.textContent = mb + ' MB (' + percent.toFixed(1) + '%)';
+
+      fill.className = 'gauge-fill';
+      if (percent > 95) fill.classList.add('danger');
+      else if (percent > 80) fill.classList.add('warning');
     }
 
     function updateCourse(i, field, val) { currentData.courses[i][field] = val; }
     function uploadThumb(e, i) {
       var file = e.target.files[0];
       if (!file) return;
+
+      // 容量チェック
+      var currentTotal = 0;
+      currentData.courses.forEach(function(c, idx) {
+        if (idx !== i && c.thumbnailSize) currentTotal += c.thumbnailSize;
+        (c.materials || []).forEach(function(m) {
+          if (m.size) currentTotal += m.size;
+        });
+      });
+      if (currentTotal + file.size > STORAGE_LIMIT) {
+        alert('ストレージ容量制限(3GB)を超えています。不要な画像を削除するか、別の画像を選択してください。');
+        e.target.value = '';
+        return;
+      }
 
       // Firebase Storage が有効な場合
       if (isFirebaseActive && storageFirebase) {
@@ -422,21 +605,26 @@
           return snapshot.ref.getDownloadURL();
         }).then(function(url) {
           currentData.courses[i].thumbnail = url;
+          currentData.courses[i].thumbnailSize = file.size; // サイズを保存
           renderSettings();
           showToast('画像をクラウドに保存しました');
         }).catch(function(error) {
           console.error('Upload Error:', error);
-          alert('画像のアップロードに失敗しました。プロジェクトのStorage設定を確認してください。');
+          alert('画像のアップロードに失敗しました。理由: ' + (error.message || '不明'));
         });
         return;
       }
 
       // ローカル保存（従来どおり）
       var reader = new FileReader();
-      reader.onload = function(ev) { currentData.courses[i].thumbnail = ev.target.result; renderSettings(); };
+      reader.onload = function(ev) { 
+        currentData.courses[i].thumbnail = ev.target.result; 
+        currentData.courses[i].thumbnailSize = file.size;
+        renderSettings(); 
+      };
       reader.readAsDataURL(file);
     }
-    function removeThumb(i) { currentData.courses[i].thumbnail = ''; renderSettings(); }
+    function removeThumb(i) { currentData.courses[i].thumbnail = ''; currentData.courses[i].thumbnailSize = 0; renderSettings(); }
     function addCourse() { currentData.mainCourseName = document.getElementById('main-course-name').value; currentData.courses.push({title:'',thumbnail:'',url:'',description:''}); renderSettings(); }
     function deleteCourse(i) { if(confirm('削除しますか？')) { currentData.courses.splice(i, 1); renderSettings(); } }
     async function saveAndBack() {
